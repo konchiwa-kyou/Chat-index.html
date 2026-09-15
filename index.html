@@ -42,10 +42,9 @@
   import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, setDoc, getDocs } from "https://gstatic.com";
   import { getMessaging, getToken } from "https://gstatic.com";
 
-  // 💡 あなたのFirebase Config
   const firebaseConfig = {
     apiKey: "AIzaSyAIxoojCu0bUXoW8e6-rjR0UvTNjdRmM3I",
-    authDomain: "://firebaseapp.com",
+    authDomain: "my-chatkdn.firebaseapp.com",
     projectId: "my-chatkdn",
     storageBucket: "my-chatkdn.firebasestorage.app",
     messagingSenderId: "407770418634",
@@ -59,12 +58,10 @@
 
   let myName = "";
 
-  // 通知の許可とトークン取得
   async function setupNotification() {
     try {
       const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
       
-      // 🚀 あなたのVAPIDキーを最初から綺麗に埋め込んでおきました！
       const currentToken = await getToken(messaging, {
         vapidKey: 'B0vJDUuBoPRlLSkfqvPqE0k15rx9GxHjL-6DTbk9Nwx5TwjDZFtnqOtMh542z672JvdEHaBuThj_0mF6IwRzs8',
         serviceWorkerRegistration: registration
@@ -118,14 +115,12 @@
 
     input.value = "";
 
-    // 1. メッセージを保存
     await addDoc(collection(db, "messages"), {
       sender: myName,
       text: text,
       timestamp: new Date()
     });
 
-    // 2. Cloud Functions（通知中継）用のキューに書き込む
     const tokenDocs = await getDocs(collection(db, "tokens"));
     tokenDocs.forEach(async (docSnap) => {
       if (docSnap.id !== myName) {
