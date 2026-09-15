@@ -1,9 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2人専用チャット（通知進化版）</title>
+    <style>
+        :root { --bg-color: #f0f2f5; --chat-bg: #ffffff; --my-msg: #0084ff; --other-msg: #e4e6eb; }
+        body { font-family: sans-serif; background: var(--bg-color); margin: 0; padding: 0; }
+        .chat-container { width: 100%; max-width: 600px; background: var(--chat-bg); margin: 0 auto; height: 100vh; display: flex; flex-direction: column; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { max-width: 70%; padding: 10px 14px; border-radius: 18px; font-size: 15px; word-break: break-all; }
+        .message.me { background: var(--my-msg); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+        .message.other { background: var(--other-msg); color: black; align-self: flex-start; border-bottom-left-radius: 2px; }
+        .input-area { display: flex; padding: 10px; border-top: 1px solid #ddd; background: #fff; }
+        input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; outline: none; font-size: 16px; }
+        button { background: var(--my-msg); color: white; border: none; padding: 0 20px; border-radius: 20px; margin-left: 10px; cursor: pointer; font-size: 16px; }
+        .setup { padding: 20px; text-align: center; }
+        .hidden { display: none !important; }
+        #token-status { font-size: 12px; color: green; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="chat-container">
+    <div id="setup-screen" class="setup">
+        <h3>名前を入力して開始</h3>
+        <input type="text" id="username" placeholder="例: タロウ、ハナコ">
+        <button onclick="startChat()">チャット開始</button>
+        <div id="token-status"></div>
+    </div>
+
+    <div id="chat-screen" class="messages hidden"></div>
+    <div id="input-screen" class="input-area hidden">
+        <input type="text" id="msg-input" placeholder="メッセージを入力..." onkeypress="handleKey(event)">
+        <button onclick="sendMessage()">送信</button>
+    </div>
+</div>
+
 <script type="module">
   import { initializeApp } from "https://gstatic.com";
   import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, setDoc, getDocs } from "https://gstatic.com";
   import { getMessaging, getToken } from "https://gstatic.com";
 
-  // ⚠️ 17:53のスクショで取得したあなた自身の本物のConfigに置き換えてください
+  // 💡 あなたのFirebase Config
   const firebaseConfig = {
     apiKey: "AIzaSyAIxoojCu0bUXoW8e6-rjR0UvTNjdRmM3I",
     authDomain: "://firebaseapp.com",
@@ -19,21 +58,19 @@
   const messaging = getMessaging(app);
 
   let myName = "";
-  let isInitialLoad = true;
 
-  // サービスワーカーの登録と通知許可の取得
+  // 通知の許可とトークン取得
   async function setupNotification() {
     try {
       const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js');
       
-      // ⚠️ Firebase Consoleで生成した「VAPIDキー（ウェブプッシュ証明書）」をここに貼り付けます
+      // 🚀 あなたのVAPIDキーを最初から綺麗に埋め込んでおきました！
       const currentToken = await getToken(messaging, {
-        vapidKey: 'ここにあなたのVAPIDキーを貼り付け',
+        vapidKey: 'B0vJDUuBoPRlLSkfqvPqE0k15rx9GxHjL-6DTbk9Nwx5TwjDZFtnqOtMh542z672JvdEHaBuThj_0mF6IwRzs8',
         serviceWorkerRegistration: registration
       });
 
       if (currentToken) {
-        // 自分の名前をドキュメントIDにして、FCMトークンをFirestoreに保存
         await setDoc(doc(db, "tokens", myName), { token: currentToken });
         document.getElementById("token-status").innerText = "🔔 通知の準備が完了しました";
       }
@@ -71,7 +108,6 @@
         chatScreen.appendChild(msgDiv);
       });
       chatScreen.scrollTop = chatScreen.scrollHeight;
-      isInitialLoad = false;
     });
   }
 
@@ -82,22 +118,21 @@
 
     input.value = "";
 
-    // 1. チャットメッセージの保存
+    // 1. メッセージを保存
     await addDoc(collection(db, "messages"), {
       sender: myName,
       text: text,
       timestamp: new Date()
     });
 
-    // 2. 相手にプッシュ通知を中継させるため、Cloud Functions用のキュー(notifications)に書き込む
+    // 2. Cloud Functions（通知中継）用のキューに書き込む
     const tokenDocs = await getDocs(collection(db, "tokens"));
     tokenDocs.forEach(async (docSnap) => {
-      if (docSnap.id !== myName) { // 自分以外の相手に送る
-        // Cloud Functions（バックエンド）が検知するデータ構造に合わせる
+      if (docSnap.id !== myName) {
         await addDoc(collection(db, "notifications"), {
-          targetUid: docSnap.id,  // 相手の識別子（名前）
-          senderName: myName,     // 送信者の名前
-          text: text,             // メッセージ本文
+          targetUid: docSnap.id,
+          senderName: myName,
+          text: text,
           timestamp: new Date()
         });
       }
@@ -106,3 +141,5 @@
 
   window.handleKey = function(e) { if (e.key === "Enter") sendMessage(); };
 </script>
+</body>
+</html>
